@@ -2,173 +2,213 @@ package com.mycompany.calculadora_m;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class GaussJordanSolver {
 
     public static class Resultado {
         public List<String> pasos;
-        public double[] soluciones;                // para soluciones unicas
-        public List<String> solucionesSimbolicas;  // para infinitas soluciones (parametricas)
+        public String[] soluciones;
+        public List<String> solucionesSimbolicas;
         public String tipoSolucion;
 
-        public Resultado(List<String> pasos, double[] soluciones, List<String> solucionesSimbolicas, String tipoSolucion) {
+        public Resultado(List<String> pasos, String[] soluciones, 
+                        List<String> solucionesSimbolicas, String tipoSolucion) {
             this.pasos = pasos;
             this.soluciones = soluciones;
             this.solucionesSimbolicas = solucionesSimbolicas;
             this.tipoSolucion = tipoSolucion;
         }
     }
-    public static Resultado resolver(double[][] matrizOriginal) {
-        int filas = matrizOriginal.length;
-        int columnas = matrizOriginal[0].length;
-        List<String> pasos = new ArrayList<>();
-        double[][] matriz = new double[filas][columnas];
-        for (int i = 0; i < filas; i++) {
-            System.arraycopy(matrizOriginal[i], 0, matriz[i], 0, columnas);
+
+    public static Resultado resolver(String[][] matrizStr) {
+        double[][] matriz = parseMatriz(matrizStr);
+        return resolverInterno(matriz);
+    }
+
+    public static Resultado resolver(double[][] matrizDouble) {
+        String[][] matrizStr = new String[matrizDouble.length][matrizDouble[0].length];
+        for (int i = 0; i < matrizDouble.length; i++) {
+            for (int j = 0; j < matrizDouble[i].length; j++) {
+                matrizStr[i][j] = formatDouble(matrizDouble[i][j]);
+            }
         }
+        return resolver(matrizStr);
+    }
+
+    private static Resultado resolverInterno(double[][] matriz) {
+        int filas = matriz.length;
+        int columnas = matriz[0].length;
+        List<String> pasos = new ArrayList<>();
+        
         pasos.add("Matriz inicial:");
         pasos.add(matrizToString(matriz));
 
-        // Gauss-Jordan
-        for (int i = 0; i < filas; i++) {
-            double pivote = matriz[i][i];
-            if (Math.abs(pivote) < 1e-8) {
-                pasos.add("No se puede continuar: pivote cero en fila " + (i + 1));
-                continue;
-            }
-            if (pivote != 1.0) {
-                pasos.add(String.format("Multiplicamos fila %d por 1/%.3f para hacer el pivote igual a 1", i + 1, pivote));
-                for (int j = 0; j < columnas; j++) {
-                    matriz[i][j] /= pivote;
-                }
+        // Fase de eliminación
+        int rank = 0;
+        for (int col = 0; col < columnas - 1 && rank < filas; col++) {
+            int filaPivote = encontrarPivote(matriz, rank, col, filas);
+            if (filaPivote == -1) continue;
+            
+            if (filaPivote != rank) {
+                intercambiarFilas(matriz, rank, filaPivote);
+                pasos.add("Intercambio fila " + (rank+1) + " y " + (filaPivote+1));
                 pasos.add(matrizToString(matriz));
             }
-            for (int k = 0; k < filas; k++) {
-                if (k != i) {
-                    double factor = matriz[k][i];
-                    if (Math.abs(factor) > 1e-8) {
-                        String operacion = (factor > 0)
-                                ? String.format("Restamos %.3f * fila %d a fila %d", factor, i + 1, k + 1)
-                                : String.format("Sumamos %.3f * fila %d a fila %d", -factor, i + 1, k + 1);
-                        pasos.add(operacion);
-                        for (int j = 0; j < columnas; j++) {
-                            matriz[k][j] -= factor * matriz[i][j];
-                        }
-                        pasos.add(matrizToString(matriz));
-                    }
+            
+            double pivote = matriz[rank][col];
+            if (!esCero(pivote)) {
+                for (int j = col; j < columnas; j++) {
+                    matriz[rank][j] /= pivote;
                 }
+                pasos.add("Normalizar fila " + (rank+1) + " con pivote " + formatDouble(pivote));
+                pasos.add(matrizToString(matriz));
             }
-        }
-
-        // Verificación de tipos de solución
-        String tipoSolucion;
-        double[] soluciones = null;
-        List<String> solucionesSimbolicas = null;
-        boolean inconsistente = false;
-        boolean infinitasSoluciones = false;
-
-        for (int i = 0; i < filas; i++) {
-            boolean filaCero = true;
-            for (int j = 0; j < columnas - 1; j++) {
-                if (Math.abs(matriz[i][j]) > 1e-8) {
-                    filaCero = false;
-                    break;
-                }
-            }
-            if (filaCero && Math.abs(matriz[i][columnas - 1]) > 1e-8) {
-                inconsistente = true;
-                break;
-            } else if (filaCero) {
-                infinitasSoluciones = true;
-            }
-        }
-
-        if (inconsistente) {
-            tipoSolucion = "El sistema no tiene solución.";
-        } else if (infinitasSoluciones) {
-            tipoSolucion = "El sistema tiene infinitas soluciones.";
-
-            solucionesSimbolicas = new ArrayList<>();
-
-            int numVariables = columnas - 1;
-            boolean[] esPivote = new boolean[numVariables]; 
+            
             for (int i = 0; i < filas; i++) {
-                for (int j = 0; j < numVariables; j++) {
-                    if (Math.abs(matriz[i][j] - 1) < 1e-8) {
-                        boolean esPivoteFila = true;
-                        for (int c = 0; c < numVariables; c++) {
-                            if (c != j && Math.abs(matriz[i][c]) > 1e-8) {
-                                esPivoteFila = false;
-                                break;
-                            }
-                        }
-                        if (esPivoteFila) {
-                            esPivote[j] = true;
+                if (i != rank && !esCero(matriz[i][col])) {
+                    double factor = matriz[i][col];
+                    for (int j = col; j < columnas; j++) {
+                        matriz[i][j] -= factor * matriz[rank][j];
+                    }
+                    pasos.add("Eliminar en fila " + (i+1) + " usando fila " + (rank+1));
+                    pasos.add(matrizToString(matriz));
+                }
+            }
+            rank++;
+        }
+
+        return analizarSolucion(matriz, pasos, filas, columnas);
+    }
+
+    private static Resultado analizarSolucion(double[][] matriz, List<String> pasos, int filas, int columnas) {
+        boolean inconsistente = false;
+        int numVariables = columnas - 1;
+        int rank = 0;
+        
+        for (int i = 0; i < filas; i++) {
+            if (!esFilaCero(matriz[i], columnas - 1)) rank++;
+            else if (!esCero(matriz[i][columnas - 1])) inconsistente = true;
+        }
+        
+        if (inconsistente) {
+            return new Resultado(pasos, null, null, "Sistema incompatible: no tiene solución");
+        } else if (rank < numVariables) {
+            List<String> solucionesParam = obtenerSolucionesParametricas(matriz, filas, columnas);
+            return new Resultado(pasos, null, solucionesParam, 
+                              "Sistema con infinitas soluciones (" + (numVariables - rank) + " variables libres)");
+        } else {
+            String[] soluciones = new String[numVariables];
+            for (int i = 0; i < numVariables; i++) {
+                soluciones[i] = convertirAFraccionExacta(matriz[i][columnas - 1]);
+            }
+            return new Resultado(pasos, soluciones, null, "Sistema con solución única");
+        }
+    }
+
+    private static List<String> obtenerSolucionesParametricas(double[][] matriz, int filas, int columnas) {
+        List<String> soluciones = new ArrayList<>();
+        int numVariables = columnas - 1;
+        boolean[] esVariableLibre = new boolean[numVariables];
+        
+        // Identificar variables libres
+        for (int j = 0; j < numVariables; j++) {
+            esVariableLibre[j] = true;
+            for (int i = 0; i < filas; i++) {
+                if (Math.abs(matriz[i][j] - 1) < 1e-8) {
+                    boolean esPivote = true;
+                    for (int k = 0; k < j; k++) {
+                        if (!esCero(matriz[i][k])) {
+                            esPivote = false;
                             break;
                         }
                     }
+                    if (esPivote) esVariableLibre[j] = false;
                 }
-            }
-            int parametroCount = 1;
-            String[] expresiones = new String[numVariables];
-            for (int i = 0; i < numVariables; i++) {
-                if (!esPivote[i]) {
-                    expresiones[i] = "t" + parametroCount;
-                    parametroCount++;
-                }
-            }
-
-            for (int i = 0; i < filas; i++) {
-                int pivoteCol = -1;
-                for (int j = 0; j < numVariables; j++) {
-                    if (Math.abs(matriz[i][j] - 1) < 1e-8) {
-                        pivoteCol = j;
-                        break;
-                    }
-                }
-                if (pivoteCol == -1) continue;
-
-                StringBuilder expr = new StringBuilder();
-                expr.append(String.format("x%d = ", pivoteCol + 1));
-                expr.append(String.format("%.3f", matriz[i][columnas - 1]));
-
-                for (int j = 0; j < numVariables; j++) {
-                    if (j != pivoteCol && !esPivote[j]) {
-                        double coef = -matriz[i][j];
-                        if (Math.abs(coef) > 1e-8) {
-                            if (coef > 0) expr.append(" + ");
-                            else expr.append(" - ");
-                            expr.append(String.format("%.3f", Math.abs(coef))).append("*t");
-                            int idxParam = 1;
-                            for (int k = 0; k < j; k++) {
-                                if (!esPivote[k]) idxParam++;
-                            }
-                            expr.append(idxParam);
-                        }
-                    }
-                }
-                expresiones[pivoteCol] = expr.toString();
-            }
-
-            for (int i = 0; i < numVariables; i++) {
-                if (!esPivote[i]) {
-                    expresiones[i] = "x" + (i + 1) + " = " + expresiones[i];
-                }
-            }
-
-            for (String s : expresiones) {
-                solucionesSimbolicas.add(s);
-            }
-
-        } else {
-            tipoSolucion = "El sistema tiene una única solución.";
-            soluciones = new double[filas];
-            for (int i = 0; i < filas; i++) {
-                soluciones[i] = matriz[i][columnas - 1];
             }
         }
 
-        return new Resultado(pasos, soluciones, solucionesSimbolicas, tipoSolucion);
+        // Construir soluciones
+        for (int j = 0; j < numVariables; j++) {
+            StringBuilder sb = new StringBuilder("x").append(j+1).append(" = ");
+            
+            if (!esVariableLibre[j]) {
+                boolean primerTermino = true;
+                
+                for (int i = 0; i < filas; i++) {
+                    if (Math.abs(matriz[i][j] - 1) < 1e-8) {
+                        // Término independiente
+                        if (!esCero(matriz[i][numVariables])) {
+                            sb.append(convertirAFraccionExacta(matriz[i][numVariables]));
+                            primerTermino = false;
+                        }
+                        
+                        // Variables libres
+                        for (int k = 0; k < numVariables; k++) {
+                            if (esVariableLibre[k] && !esCero(matriz[i][k])) {
+                                double coef = -matriz[i][k];
+                                String coefStr = convertirAFraccionExacta(coef);
+                                
+                                if (!primerTermino) {
+                                    sb.append(coef > 0 ? " + " : " - ");
+                                    sb.append(coefStr.replace("-", ""));
+                                } else {
+                                    sb.append(coefStr);
+                                }
+                                sb.append("*x").append(k+1);
+                                primerTermino = false;
+                            }
+                        }
+                        break;
+                    }
+                }
+                
+                if (primerTermino) sb.append("0");
+            } else {
+                sb.append("x").append(j+1);
+            }
+            
+            soluciones.add(sb.toString());
+        }
+        
+        return soluciones;
+    }
+
+    // Métodos auxiliares
+    private static String convertirAFraccionExacta(double valor) {
+        if (esCero(valor)) return "0";
+        
+        for (int den = 1; den <= 20; den++) {
+            for (int num = -20; num <= 20; num++) {
+                if (num != 0 && Math.abs(valor - (double)num/den) < 1e-8) {
+                    return (den == 1) ? Integer.toString(num) : num + "/" + den;
+                }
+            }
+        }
+        return String.format("%.4f", valor).replaceAll("\\.?0+$", "");
+    }
+
+    private static double[][] parseMatriz(String[][] matrizStr) {
+        double[][] matriz = new double[matrizStr.length][matrizStr[0].length];
+        for (int i = 0; i < matrizStr.length; i++) {
+            for (int j = 0; j < matrizStr[i].length; j++) {
+                matriz[i][j] = parseFraction(matrizStr[i][j]);
+            }
+        }
+        return matriz;
+    }
+
+    private static double parseFraction(String str) {
+        if (str.contains("/")) {
+            String[] parts = str.split("/");
+            return Double.parseDouble(parts[0]) / Double.parseDouble(parts[1]);
+        }
+        return Double.parseDouble(str);
+    }
+
+    private static String formatDouble(double value) {
+        return String.format("%.4f", value).replaceAll("\\.?0+$", "");
     }
 
     private static String matrizToString(double[][] matriz) {
@@ -180,5 +220,29 @@ public class GaussJordanSolver {
             sb.append("\n");
         }
         return sb.toString();
+    }
+
+    private static int encontrarPivote(double[][] matriz, int filaInicio, int col, int filas) {
+        for (int i = filaInicio; i < filas; i++) {
+            if (!esCero(matriz[i][col])) return i;
+        }
+        return -1;
+    }
+
+    private static boolean esFilaCero(double[] fila, int numColumnas) {
+        for (int j = 0; j < numColumnas; j++) {
+            if (!esCero(fila[j])) return false;
+        }
+        return true;
+    }
+
+    private static boolean esCero(double value) {
+        return Math.abs(value) < 1e-8;
+    }
+
+    private static void intercambiarFilas(double[][] matriz, int fila1, int fila2) {
+        double[] temp = matriz[fila1];
+        matriz[fila1] = matriz[fila2];
+        matriz[fila2] = temp;
     }
 }

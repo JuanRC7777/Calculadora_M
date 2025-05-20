@@ -1,16 +1,27 @@
 package com.mycompany.calculadora_m;
+
 import javax.swing.*;
 import java.awt.*;
 import javax.swing.border.EmptyBorder;
 import java.util.List;
 
 public class ResultadoFrame extends JFrame {
+    // Constructor para matriz de doubles (mantiene compatibilidad)
     public ResultadoFrame(double[][] matriz) {
         super("Resultado del Sistema por Gauss-Jordan");
         configurarFrame();
-        inicializarComponentes(matriz);
-        setVisible(true);
+        GaussJordanSolver.Resultado resultado = GaussJordanSolver.resolver(matriz);
+        inicializarComponentes(resultado);
     }
+
+    // Nuevo constructor para matriz de Strings (acepta fracciones)
+    public ResultadoFrame(String[][] matrizStr) {
+        super("Resultado del Sistema por Gauss-Jordan");
+        configurarFrame();
+        GaussJordanSolver.Resultado resultado = GaussJordanSolver.resolver(matrizStr);
+        inicializarComponentes(resultado);
+    }
+
     private void configurarFrame() {
         setSize(800, 600);
         setLocationRelativeTo(null);
@@ -19,8 +30,7 @@ public class ResultadoFrame extends JFrame {
         setLayout(new BorderLayout(10, 10));
     }
 
-    private void inicializarComponentes(double[][] matriz) {
-        GaussJordanSolver.Resultado resultado = GaussJordanSolver.resolver(matriz);
+    private void inicializarComponentes(GaussJordanSolver.Resultado resultado) {
         JPanel panelContenido = new JPanel(new BorderLayout(10, 10));
         panelContenido.setBackground(Color.WHITE);
         panelContenido.setBorder(BorderFactory.createCompoundBorder(
@@ -28,7 +38,7 @@ public class ResultadoFrame extends JFrame {
                 new EmptyBorder(20, 20, 20, 20)
         ));
 
-        JLabel titulo = new JLabel("Pasos de resolucion con Gauss-Jordan", JLabel.CENTER);
+        JLabel titulo = new JLabel("Pasos de resolución con Gauss-Jordan", JLabel.CENTER);
         titulo.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titulo.setForeground(new Color(33, 64, 128));
         panelContenido.add(titulo, BorderLayout.NORTH);
@@ -64,22 +74,26 @@ public class ResultadoFrame extends JFrame {
         panelContenido.add(panelBoton, BorderLayout.SOUTH);
 
         add(panelContenido, BorderLayout.CENTER);
+        setVisible(true);
     }
 
     private String generarTextoResultado(GaussJordanSolver.Resultado resultado) {
         StringBuilder texto = new StringBuilder();
 
+        // Mostrar pasos
         for (String paso : resultado.pasos) {
             texto.append(paso).append("\n");
         }
 
+        // Mostrar resultados
         texto.append("\n--- Resultado final ---\n")
               .append(resultado.tipoSolucion).append("\n");
+
         if (resultado.soluciones != null) {
-            texto.append("\n* Soluciones unicas *\n");
+            texto.append("\n* Soluciones únicas *\n");
             for (int i = 0; i < resultado.soluciones.length; i++) {
                 texto.append("x").append(i + 1).append(" = ")
-                      .append(String.format("%.4f", resultado.soluciones[i])).append("\n");
+                      .append(resultado.soluciones[i]).append("\n");
             }
         } else if (resultado.solucionesSimbolicas != null) {
             texto.append("\n* Soluciones generales (infinitas soluciones) *\n");

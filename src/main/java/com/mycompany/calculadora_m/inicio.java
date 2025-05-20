@@ -123,13 +123,13 @@ public class inicio extends javax.swing.JFrame {
         try {
             int filas = Integer.parseInt(Filas);
             int columnas = Integer.parseInt(Columnas);
-            if ((filas == columnas) && (filas >= 2 && filas <= 6 && columnas >= 2 && columnas <= 6)) {
+            if (filas >= 2 && filas <= 6 && columnas >= 2 && columnas <= 6) {
                 new MatrizInputFrame(filas, columnas);
             } else {
                 JOptionPane.showMessageDialog(null, "Solo se permiten sistemas de 2x2 a 6x6 (y columna extra para resultados).");
             }
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "Debes ingresar numeros validos.");
+            JOptionPane.showMessageDialog(null, "Debes ingresar numeros válidos.");
         }
     }
     }//GEN-LAST:event_generarmatrixActionPerformed

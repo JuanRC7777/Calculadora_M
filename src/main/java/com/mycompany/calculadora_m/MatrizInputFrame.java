@@ -23,9 +23,10 @@ public class MatrizInputFrame extends javax.swing.JFrame {
         independientes = new JTextField[filas];
         JPanel panelEcuaciones = new JPanel(new GridLayout(filas, columnas * 3 + 2, 5, 5)); 
 
+        // Generación de cajas de texto
         for (int i = 0; i < filas; i++) {
             for (int j = 0; j < columnas; j++) {
-                coeficientes[i][j] = new JTextField(3);
+                coeficientes[i][j] = new JTextField(5); // Aumenté el tamaño para fracciones
                 panelEcuaciones.add(coeficientes[i][j]);
 
                 JLabel variable = new JLabel("x" + (j + 1));
@@ -38,27 +39,33 @@ public class MatrizInputFrame extends javax.swing.JFrame {
                 }
             }
             panelEcuaciones.add(new JLabel("="));
-            independientes[i] = new JTextField(3);
+            independientes[i] = new JTextField(5); // Aumente el tamaño para fracciones
             panelEcuaciones.add(independientes[i]);
         }
+        
         JButton btnResolver = new JButton("Resolver");
         btnResolver.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                double[][] matriz = new double[filas][columnas + 1];
+                String[][] matrizStr = new String[filas][columnas + 1];
 
                 try {
+                    // Construir matriz de strings
                     for (int i = 0; i < filas; i++) {
                         for (int j = 0; j < columnas; j++) {
-                            matriz[i][j] = Double.parseDouble(coeficientes[i][j].getText());
+                            matrizStr[i][j] = coeficientes[i][j].getText();
                         }
-                        matriz[i][columnas] = Double.parseDouble(independientes[i].getText());
+                        matrizStr[i][columnas] = independientes[i].getText();
                     }
 
                     dispose(); // Cierra esta ventana
-                    new ResultadoFrame(matriz); // Abre ventana de resultados
+                    new ResultadoFrame(matrizStr); // Abre ventana de resultados
 
-                } catch (NumberFormatException ex) {
-                    JOptionPane.showMessageDialog(null, "Por favor, ingresa solo numeros validos.");
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(null, 
+                        "Error en los datos ingresados. Asegúrate de usar:\n" +
+                        "- Números enteros (ej: 5)\n" +
+                        "- Decimales (ej: 3.14)\n" +
+                        "- Fracciones (ej: 2/3)");// se manejo las excepcion correctamente
                 }
             }
         });
@@ -71,7 +78,6 @@ public class MatrizInputFrame extends javax.swing.JFrame {
         setVisible(true);
     }
     
-
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -126,11 +132,7 @@ public class MatrizInputFrame extends javax.swing.JFrame {
         //</editor-fold>
 
         /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new MatrizInputFrame(2,2).setVisible(true);
-            }
-        });
+        
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
